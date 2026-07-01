@@ -84,6 +84,7 @@ class DynamicResolutionScheduler:
         block_id=-1,
         coarse_train=False,
         lock_resolution_level=False,
+        slope_ref=None,
     ) -> None:
         self.dataset = dataset
         self.model_path = Path(model_path) if model_path else None
@@ -114,7 +115,9 @@ class DynamicResolutionScheduler:
         self.extra_densify_iters = 0
         self.stable_windows = 0
         self.metric_history = []
+        self.external_slope_ref = max(0.0, float(slope_ref or 0.0))
         self.max_positive_slope = 0.0
+        self.global_max_positive_slope = 0.0
         self.last_plateau_stats = None
         self.dataset.reset_down_ratio(self.level)
         self.resolution_events = []
@@ -163,14 +166,18 @@ class DynamicResolutionScheduler:
         current_curvature = 2.0 * a
         if current_slope > self.max_positive_slope:
             self.max_positive_slope = current_slope
+        if current_slope > self.global_max_positive_slope:
+            self.global_max_positive_slope = current_slope
 
         eps = 1e-12
-        slope_ref = max(self.max_positive_slope, eps)
+        slope_ref = max(self.external_slope_ref, self.max_positive_slope, eps)
         normalized_slope = current_slope / slope_ref
         normalized_curvature = current_curvature / slope_ref
         self.last_plateau_stats = {
             "slope": float(current_slope),
             "curvature": float(current_curvature),
+            "slope_ref": float(slope_ref),
+            "external_slope_ref": float(self.external_slope_ref),
             "normalized_slope": float(normalized_slope),
             "normalized_curvature": float(normalized_curvature),
         }
@@ -203,6 +210,7 @@ class DynamicResolutionScheduler:
                 "resolution plateau stats: "
                 f"level={self.ratio}/{self.max_level}, "
                 f"metric={metric:.6f}, "
+                f"slope_ref={stats['slope_ref']:.6f}, "
                 f"slope_ratio={stats['normalized_slope']:.4f}, "
                 f"curvature_ratio={stats['normalized_curvature']:.4f}, "
                 f"stable_windows={self.stable_windows}/{self.stable_windows_required}"
@@ -291,6 +299,8 @@ class DynamicResolutionScheduler:
                 {
                     "slope": float(stats["slope"]),
                     "curvature": float(stats["curvature"]),
+                    "slope_ref": float(stats["slope_ref"]),
+                    "external_slope_ref": float(stats["external_slope_ref"]),
                     "normalized_slope": float(stats["normalized_slope"]),
                     "normalized_curvature": float(stats["normalized_curvature"]),
                 }
@@ -300,6 +310,8 @@ class DynamicResolutionScheduler:
                 {
                     "slope": "",
                     "curvature": "",
+                    "slope_ref": "",
+                    "external_slope_ref": "",
                     "normalized_slope": "",
                     "normalized_curvature": "",
                 }
@@ -319,6 +331,8 @@ class DynamicResolutionScheduler:
                 "metric": float(metric),
                 "slope": stats.get("slope", ""),
                 "curvature": stats.get("curvature", ""),
+                "slope_ref": stats.get("slope_ref", ""),
+                "external_slope_ref": stats.get("external_slope_ref", ""),
                 "normalized_slope": stats.get("normalized_slope", ""),
                 "normalized_curvature": stats.get("normalized_curvature", ""),
                 "stable_windows": self.stable_windows,
@@ -367,19 +381,48 @@ def resolve_coarse_resolution_mode(opt):
     return int(mode), True
 
 
-def resolve_initial_resolution_level(dataset, opt, coarse_train):
+def find_coarse_metadata_path(dataset):
+    candidates = []
+    pretrain_path = getattr(dataset, "pretrain_path", "")
+    if pretrain_path:
+        path = Path(pretrain_path)
+        candidates.extend([path, *path.parents])
+
+    model_path = Path(dataset.model_path)
+    candidates.extend([model_path, *model_path.parents])
+
+    seen = set()
+    for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        metadata_path = candidate / "coarse_ratio.json"
+        if metadata_path.exists():
+            return metadata_path
+    return None
+
+
+def load_coarse_scheduler_metadata(dataset):
+    metadata_path = find_coarse_metadata_path(dataset)
+    if metadata_path is None:
+        return {}, None
+
+    with open(metadata_path, "r") as f:
+        metadata = json.load(f)
+    print(f"Loaded coarse scheduler metadata from {metadata_path}.")
+    return metadata, metadata_path
+
+
+def resolve_initial_resolution_level(dataset, opt, coarse_train, coarse_metadata=None):
     if coarse_train:
         level, _ = resolve_coarse_resolution_mode(opt)
         return level
 
     coarse_level = opt.resolution_start_level
-    scene_dir = Path(dataset.model_path).parent
-    coarse_ratio_path = scene_dir / (scene_dir.name + "_coarse") / "coarse_ratio.json"
-    if os.path.exists(coarse_ratio_path):
-        with open(coarse_ratio_path, "r") as f:
-            coarse_ratio_data = json.load(f)
-        coarse_level = int(coarse_ratio_data.get("coarse_ratio", coarse_level))
-        print(f"Loaded coarse resolution level {coarse_level} from {coarse_ratio_path}.")
+    if coarse_metadata:
+        coarse_level = int(coarse_metadata.get("coarse_ratio", coarse_level))
+        print(f"Loaded coarse resolution level {coarse_level}.")
 
     mode = opt.block_resolution_start
     if isinstance(mode, str):
@@ -396,11 +439,41 @@ def resolve_initial_resolution_level(dataset, opt, coarse_train):
     return int(mode)
 
 
+def resolve_scheduler_slope_ref(dataset, coarse_train, coarse_metadata=None):
+    if coarse_train or not coarse_metadata:
+        return None
+    slope_ref = coarse_metadata.get("coarse_ref_slope", None)
+    if slope_ref is None:
+        return None
+    slope_ref = float(slope_ref)
+    if slope_ref <= 0.0:
+        return None
+    print(f"Loaded coarse scheduler slope reference {slope_ref:.6f}.")
+    return slope_ref
+
+
 def should_lock_resolution_level(opt, coarse_train):
     if not coarse_train:
         return False
     _, lock_level = resolve_coarse_resolution_mode(opt)
     return lock_level
+
+
+def save_scheduler_metadata(dataset, scheduler):
+    if scheduler.model_path is None or not scheduler.coarse_train:
+        return
+    metadata = {
+        "coarse_ratio": int(scheduler.ratio),
+        "coarse_ref_slope": float(scheduler.global_max_positive_slope),
+        "current_level": int(scheduler.ratio),
+        "max_level": int(scheduler.max_level),
+        "dynamic_resolution": bool(scheduler.dynamic_resolution),
+        "coarse_train": bool(scheduler.coarse_train),
+    }
+    path = scheduler.model_path / "coarse_ratio.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(metadata, f, indent=2)
                 
 def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_iter, always_reproj, max_offset_k, testing_iterations, saving_iterations, refilter_iterations, checkpoint_iterations, checkpoint, max_cache_num, debug_from):
     first_iter = 0                      
@@ -479,7 +552,9 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
     first_iter += 1
     iteration = first_iter
     
-    initial_resolution_level = resolve_initial_resolution_level(dataset, opt, coarse_train)
+    coarse_metadata, _ = load_coarse_scheduler_metadata(dataset) if not coarse_train else ({}, None)
+    initial_resolution_level = resolve_initial_resolution_level(dataset, opt, coarse_train, coarse_metadata)
+    scheduler_slope_ref = resolve_scheduler_slope_ref(dataset, coarse_train, coarse_metadata)
     lock_resolution_level = should_lock_resolution_level(opt, coarse_train)
     
     Scheduler = DynamicResolutionScheduler(
@@ -491,6 +566,7 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
         block_id=getattr(dataset, "block_id", -1),
         coarse_train=coarse_train,
         lock_resolution_level=lock_resolution_level,
+        slope_ref=scheduler_slope_ref,
     )
     depth_l1_weight = get_expon_lr_func(
         opt.depth_l1_weight_init,
@@ -674,12 +750,7 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
             
             if iteration >= opt.iterations:
                 break
-        file_name = "coarse_ratio.json"
-        path = os.path.join(dataset.model_path, file_name)
-        os.makedirs(os.path.dirname(path),exist_ok=True)
-        
-        with open(path, 'w') as f:
-            json.dump({"coarse_ratio":Scheduler.ratio}, f)
+        save_scheduler_metadata(dataset, Scheduler)
 
 def prepare_output_and_logger(args):    
     if not args.model_path:

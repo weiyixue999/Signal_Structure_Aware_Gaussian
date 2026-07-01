@@ -7,7 +7,7 @@ model_params: {
     sh_degree: 3,
     source_path: "data/rubble/train",                     
     partition_name: "rubble_c9_r4",
-    pretrain_path: "output/rubble_coarse/point_cloud/iteration_30000",
+    pretrain_path: "output/rubble_coarse/point_cloud",
     model_path: "",
     images: "images",
     block_dim: [2, 1, 2], 
@@ -64,5 +64,6 @@ optim_params: {
 
     persistent_data_workers: True,
     data_prefetch_factor: 4,
+    chunk_cache_size: 500,
+    chunk_cache_iterations: 2500,
 }
-

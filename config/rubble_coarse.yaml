@@ -49,5 +49,5 @@ optim_params: {
     data_prefetch_factor: 4,
     chunk_cache_size: 500,
     chunk_cache_iterations: 2500,
-    coarse_resolution_mode: "min",  # "dynamic", "min", or an integer level.
+    coarse_resolution_mode: "dynamic",  # "dynamic", "min", or an integer level.
 }

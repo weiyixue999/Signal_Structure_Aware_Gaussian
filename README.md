@@ -34,30 +34,6 @@ data/rubble/train
 data/rubble/val
 ```
 
-## Environment
-
-Use a Python environment with PyTorch, CUDA, COLMAP/3DGS dependencies, and the renderer dependencies installed. The current development environment was run with:
-
-```bash
-conda activate SIG
-```
-
-Common Python dependencies include:
-
-```bash
-pip install lightning transforms3d lpips plyfile tqdm pyyaml pillow opencv-python
-```
-
-If pip needs your local proxy:
-
-```bash
-export HTTP_PROXY=http://127.0.0.1:7890
-export HTTPS_PROXY=http://127.0.0.1:7890
-export ALL_PROXY=http://127.0.0.1:7890
-export http_proxy=http://127.0.0.1:7890
-export https_proxy=http://127.0.0.1:7890
-export all_proxy=http://127.0.0.1:7890
-```
 
 ## Quick Start
 
@@ -93,7 +69,7 @@ Useful fields:
 ```yaml
 iterations: 15_000
 resolution: 4
-coarse_resolution_mode: "min"
+coarse_resolution_mode: "dynamic"
 chunk_cache_size: 500
 chunk_cache_iterations: 2500
 init_point_max_points: 0
@@ -109,6 +85,8 @@ integer    lock coarse training to a specific level
 ```
 
 `init_point_max_points: 0` keeps all original COLMAP points. Setting it to a positive value randomly downsamples the initial point cloud.
+
+During coarse training, the scheduler writes `coarse_ratio.json` in the coarse output folder. It stores both the final coarse resolution level and `coarse_ref_slope`, the maximum positive metric slope observed during coarse training.
 
 ### Fine / Block Training
 
@@ -170,6 +148,8 @@ normalized_curvature <= resolution_curvature_ratio_threshold
 ```
 
 After `resolution_stable_windows` consecutive stable windows, the dataset switches to the next higher resolution level.
+
+For fine/block training, the scheduler reads `coarse_ratio.json` from the coarse checkpoint path when available. Fine training still starts from `block_resolution_start` such as `"min"`, but its `normalized_slope` and `normalized_curvature` use the coarse `coarse_ref_slope` as the reference. If the metadata is missing, it falls back to the maximum positive slope observed in the current level.
 
 For block training, if resolution promotion is too slow, try:
 
