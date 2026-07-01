@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environments and notebooks
+.env
+.venv/
+venv/
+env/
+*.ipynb
+.ipynb_checkpoints/
+
+# Training data and generated artifacts
+data/
+output/
+output_old/
+logs/
+wandb/
+lightning_logs/
+runs/
+
+# Large local files generated during experiments
+*.ply
+*.dump
+cameras.json
+
+# Editor and OS noise
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/

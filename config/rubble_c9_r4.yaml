@@ -1,0 +1,69 @@
+# Model Parameters
+model_params: {
+    model_config: {
+        name: "GaussianModel",
+        kwargs: {}
+    },
+    sh_degree: 3,
+    source_path: "data/rubble/train",                     
+    partition_name: "rubble_c9_r4",
+    pretrain_path: "output/rubble_coarse/point_cloud",
+    model_path: "",
+    images: "images",
+    block_dim: [2, 1, 2], 
+    aabb: [-50, -100, -135, 50, 300, -5],
+    ssim_threshold: 0.12,
+    resolution: 4,
+    white_background: False,
+    data_device: "cuda",
+    eval: False,
+    znear: 0.01,
+    zfar: 10000.0,
+}
+
+# Pipeline Parameters
+pipeline_params: {
+    convert_SHs_python:  False,
+    compute_cov3D_python:  False,
+    debug:  False
+}
+
+
+# Optimization Parameters
+optim_params: {
+    iterations: 45_000,
+    position_lr_init: 0.000064,
+    position_lr_final: 0.00000064,
+    position_lr_delay_mult: 0.01,
+    position_lr_max_steps: 45_000,
+    feature_lr: 0.0025,
+    opacity_lr: 0.02,
+    scaling_lr: 0.004,
+    rotation_lr: 0.001,
+    percent_dense: 0.01,
+    lambda_dssim: 0.3,
+    densification_interval: 200,
+    opacity_reset_interval: 500000, # False
+    densify_from_iter: 1000,
+    densify_until_iter: 25_000,
+    densify_grad_threshold: 0.00012,
+
+    # Dynamic-resolution scheduler for block/fine training.
+    dynamic_resolution: True,
+    resolution_start_level: 1,
+    resolution_end_level: 5,
+    block_resolution_start: "min",  # "min", "coarse", or an integer level.
+    resolution_update_interval: 100,
+    resolution_metric_window: 8,
+    resolution_slope_ratio_threshold: 0.05,
+    resolution_curvature_ratio_threshold: 0.0,
+    resolution_stable_windows: 3,
+    densify_stage_start: 500,
+    densify_stage_end: 3000,
+    extend_densify_on_resolution_change: True,
+
+    persistent_data_workers: True,
+    data_prefetch_factor: 4,
+    chunk_cache_size: 500,
+    chunk_cache_iterations: 2500,
+}

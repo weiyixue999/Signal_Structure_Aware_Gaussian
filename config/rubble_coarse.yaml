@@ -1,0 +1,53 @@
+# Model Parameters
+model_params: {
+    model_config: {
+        name: "GaussianModel",
+        kwargs: {}
+    },
+    sh_degree: 3,
+    source_path: "data/rubble/train",
+    model_path: "",
+    images: "images",
+    resolution: 4,
+    white_background: False,
+    data_device: "cuda",
+    eval: False,
+    image_cache_size: 0,
+    init_point_extent_multiplier: 0.0,
+    init_point_max_points: 0,
+    init_scale_max_ratio: 0.03,
+    znear: 0.01,
+    zfar: 10000.0,
+}
+
+# Pipeline Parameters
+pipeline_params: {
+    convert_SHs_python:  False,
+    compute_cov3D_python:  False,
+    debug:  False
+}
+
+# Optimization Parameters
+optim_params: {
+    iterations: 15_000,
+    position_lr_init: 0.00016,
+    position_lr_final: 0.0000016,
+    position_lr_delay_mult: 0.01,
+    position_lr_max_steps: 15_000,
+    feature_lr: 0.0025,
+    opacity_lr: 0.05,
+    scaling_lr: 0.005,
+    rotation_lr: 0.001,
+    percent_dense: 0.01,
+    lambda_dssim: 0.2,
+    densification_interval: 200,
+    opacity_reset_interval: 1400,
+    densify_from_iter: 500,
+    densify_until_iter: 15_000,
+    densify_grad_threshold: 0.00016,
+    persistent_data_workers: True,
+    data_prefetch_factor: 4,
+    chunk_cache_size: 500,
+    chunk_cache_iterations: 2500,
+    coarse_resolution_mode: "min",  # "dynamic", "min", or an integer level.
+}
