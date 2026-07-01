@@ -1,4 +1,4 @@
-# ILCR Open Source
+# Official implementation of “Signal Structure-Aware Gaussian Splatting for Large-Scale Scene Reconstruction” (ICLR 2026).
 
 This repository trains large-scene 3D Gaussian Splatting models with two main additions over vanilla 3DGS:
 
