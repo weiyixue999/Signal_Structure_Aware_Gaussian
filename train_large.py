@@ -439,8 +439,13 @@ def resolve_initial_resolution_level(dataset, opt, coarse_train, coarse_metadata
     return int(mode)
 
 
-def resolve_scheduler_slope_ref(dataset, coarse_train, coarse_metadata=None):
-    if coarse_train or not coarse_metadata:
+def resolve_scheduler_slope_ref(opt, coarse_train, coarse_metadata=None):
+    if coarse_train:
+        return None
+    if not bool(getattr(opt, "use_coarse_slope_ref", True)):
+        print("Coarse scheduler slope reference is disabled; using online slope reference.")
+        return None
+    if not coarse_metadata:
         return None
     slope_ref = coarse_metadata.get("coarse_ref_slope", None)
     if slope_ref is None:
@@ -554,7 +559,7 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
     
     coarse_metadata, _ = load_coarse_scheduler_metadata(dataset) if not coarse_train else ({}, None)
     initial_resolution_level = resolve_initial_resolution_level(dataset, opt, coarse_train, coarse_metadata)
-    scheduler_slope_ref = resolve_scheduler_slope_ref(dataset, coarse_train, coarse_metadata)
+    scheduler_slope_ref = resolve_scheduler_slope_ref(opt, coarse_train, coarse_metadata)
     lock_resolution_level = should_lock_resolution_level(opt, coarse_train)
     
     Scheduler = DynamicResolutionScheduler(
@@ -644,7 +649,7 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
                 image_height = image_height.item()
                 image_width = image_width.item()    
             
-                disturb = torch.tensor((0.3*image_width*torch.median(depth_rendered)/intrinsic[0,0],0.3*image_height*torch.median(depth_rendered)/intrinsic[0,0],0.0))
+                disturb = torch.tensor((0.15*image_width*torch.median(depth_rendered)/intrinsic[0,0],0.15*image_height*torch.median(depth_rendered)/intrinsic[0,0],0.0))
                 dummy_camera,_,_ = construct_cam_info(image_height, image_width, extrinsic, intrinsic, disturb = disturb)
                 temp_data_loader = DataLoader([dummy_camera],batch_size=1,shuffle=False, num_workers=0, pin_memory=True)
                 for m in temp_data_loader:

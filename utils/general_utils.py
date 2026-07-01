@@ -226,8 +226,9 @@ def get_default_op():
     op.resolution_update_interval = 100
     op.resolution_metric_window = 8
     op.resolution_slope_ratio_threshold = 0.05
-    op.resolution_curvature_ratio_threshold = 0.0
+    op.resolution_curvature_ratio_threshold = 0.2
     op.resolution_stable_windows = 2
+    op.use_coarse_slope_ref = True
     op.densify_stage_start = 500
     op.densify_stage_end = 3000
     op.extend_densify_on_resolution_change = True

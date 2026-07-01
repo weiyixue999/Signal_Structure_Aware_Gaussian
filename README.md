@@ -1,9 +1,4 @@
-# Official implementation of “Signal Structure-Aware Gaussian Splatting for Large-Scale Scene Reconstruction” (ICLR 2026).
-
-This repository trains large-scene 3D Gaussian Splatting models with two main additions over vanilla 3DGS:
-
-- Dynamic-resolution training: images start from a low resolution level and are promoted when the Gaussian scale metric becomes stable.
-- Staged densification: densification statistics and pruning are tied to the current resolution stage, so each stage can grow/refine Gaussians before moving to a higher image resolution.
+# Signal Structure-Aware Gaussian Splatting for Large-Scale Scene Reconstruction (ICLR 2026).
 
 The typical pipeline is:
 
@@ -52,7 +47,6 @@ The script contains the full pipeline:
 - rendering
 - metric evaluation
 
-Check that the coarse-training line in `scripts/run_citygs.sh` is enabled if you do not already have a coarse checkpoint. If the coarse model was already trained, the script can start from partition/block training.
 
 ## Important Configuration
 
@@ -67,9 +61,9 @@ config/rubble_coarse.yaml
 Useful fields:
 
 ```yaml
-iterations: 15_000
+iterations: 30_000
 resolution: 4
-coarse_resolution_mode: "dynamic"
+coarse_resolution_mode: "dynamic" 
 chunk_cache_size: 500
 chunk_cache_iterations: 2500
 init_point_max_points: 0
@@ -82,6 +76,11 @@ init_point_extent_multiplier: 0.0
 "dynamic"  start low and use the resolution scheduler
 "min"      keep the coarse model at resolution_start_level
 integer    lock coarse training to a specific level
+```
+
+`chunk_cache_size`:
+```text
+Originally, we trained our model on eight H20 GPUs, which allowed us to preload all images at different resolutions. To accommodate other types of GPUs with more limited memory capacity, we instead prefetch 500 data samples at a time and refresh the cache after every 2,500 training iterations. However, this strategy substantially affects the training efficiency.
 ```
 
 `init_point_max_points: 0` keeps all original COLMAP points. Setting it to a positive value randomly downsamples the initial point cloud.
@@ -105,10 +104,8 @@ pretrain_path: "output/rubble_coarse/point_cloud"
 The code automatically resolves the latest available iteration, e.g.:
 
 ```text
-output/rubble_coarse/point_cloud/iteration_15000/point_cloud.ply
+output/rubble_coarse/point_cloud/iteration_30000/point_cloud.ply
 ```
-
-This avoids hard-coding `iteration_30000` when coarse training uses a different iteration count.
 
 ## Dynamic Resolution Scheduler
 
@@ -121,9 +118,10 @@ resolution_end_level: 5
 block_resolution_start: "min"
 resolution_update_interval: 100
 resolution_metric_window: 8
-resolution_slope_ratio_threshold: 0.05
-resolution_curvature_ratio_threshold: 0.0
-resolution_stable_windows: 3
+resolution_slope_ratio_threshold: 0.3
+resolution_curvature_ratio_threshold: 0.2
+resolution_stable_windows: 2
+use_coarse_slope_ref: True
 densify_stage_start: 500
 densify_stage_end: 3000
 extend_densify_on_resolution_change: True
@@ -132,11 +130,11 @@ extend_densify_on_resolution_change: True
 Resolution levels are integer multipliers between `resolution_start_level` and `resolution_end_level`. With `resolution: 4` and `resolution_end_level: 5`, rubble uses:
 
 ```text
-level 1: 0.25 * 1 / 5 = 0.05 -> 230x172
-level 2: 0.25 * 2 / 5 = 0.10 -> 460x345
-level 3: 0.25 * 3 / 5 = 0.15 -> 691x518
-level 4: 0.25 * 4 / 5 = 0.20 -> 921x691
-level 5: 0.25 * 5 / 5 = 0.25 -> 1152x864
+level 1: 0.25 * 1 / 5 = 0.05 
+level 2: 0.25 * 2 / 5 = 0.10
+level 3: 0.25 * 3 / 5 = 0.15
+level 4: 0.25 * 4 / 5 = 0.20
+level 5: 0.25 * 5 / 5 = 0.25
 ```
 
 The scheduler samples a scale-frequency metric every `resolution_update_interval` iterations. It fits a quadratic curve over the latest `resolution_metric_window` samples and checks:
@@ -149,15 +147,9 @@ normalized_curvature <= resolution_curvature_ratio_threshold
 
 After `resolution_stable_windows` consecutive stable windows, the dataset switches to the next higher resolution level.
 
-For fine/block training, the scheduler reads `coarse_ratio.json` from the coarse checkpoint path when available. Fine training still starts from `block_resolution_start` such as `"min"`, but its `normalized_slope` and `normalized_curvature` use the coarse `coarse_ref_slope` as the reference. If the metadata is missing, it falls back to the maximum positive slope observed in the current level.
+For fine/block training, the scheduler reads `coarse_ratio.json` from the coarse checkpoint path when available. Fine training still starts from `block_resolution_start` such as `"min"`, but its `normalized_slope` and `normalized_curvature` use the coarse `coarse_ref_slope` as the reference when `use_coarse_slope_ref: True`.
 
-For block training, if resolution promotion is too slow, try:
-
-```yaml
-block_resolution_start: "coarse"
-resolution_slope_ratio_threshold: 0.15
-resolution_stable_windows: 1
-```
+Set `use_coarse_slope_ref: False` to estimate the slope reference online during fine optimization instead. If the coarse metadata is missing, the code also falls back to the maximum positive slope observed in the current level.
 
 ## Image Loading and Chunk Cache
 
@@ -175,11 +167,6 @@ Behavior:
 3. Release the chunk and cache the next 500 images.
 4. If the resolution level changes, rebuild the chunk at the new resolution.
 
-This is separate from the older LRU `image_cache_size`. For chunked caching, keep:
-
-```yaml
-image_cache_size: 0
-```
 
 ## Rendering and Metrics
 
@@ -227,27 +214,6 @@ output/rubble_c9_r4/cells/cell1/resolution_schedule.csv
 
 ## Common Issues
 
-### Fine training cannot find `iteration_30000`
-
-Do not hard-code the coarse iteration unless needed. Prefer:
-
-```yaml
-pretrain_path: "output/rubble_coarse/point_cloud"
-```
-
-The loader will automatically use the latest `iteration_*` directory.
-
-### Coarse starts with fewer COLMAP points than expected
-
-Use:
-
-```yaml
-init_point_max_points: 0
-init_point_extent_multiplier: 0.0
-```
-
-This keeps the original COLMAP point count.
-
 ### Block training stays at low resolution
 
 The stability threshold may be too conservative. Inspect:
@@ -259,7 +225,7 @@ output/<scene>/cells/cell*/resolution_metrics.csv
 Then relax:
 
 ```yaml
-resolution_slope_ratio_threshold: 0.15
+resolution_slope_ratio_threshold: 0.4
 resolution_stable_windows: 1
 ```
 

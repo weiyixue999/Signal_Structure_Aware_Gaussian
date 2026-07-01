@@ -20,7 +20,7 @@ port=4041
 # train coarse global gaussian model
 gpu_id=$(get_available_gpu)
 echo "GPU $gpu_id is available."
-# CUDA_VISIBLE_DEVICES=$gpu_id python train_large.py --config config/$COARSE_CONFIG.yaml --max_offset_k 25 --prune_outlier_iter 800 --coarse_train 
+CUDA_VISIBLE_DEVICES=$gpu_id python train_large.py --config config/$COARSE_CONFIG.yaml --max_offset_k 25 --prune_outlier_iter 800 --coarse_train 
 
 # train CityGaussian
 # obtain data partitioning
@@ -40,11 +40,11 @@ for num in $(seq 0 $max_block_id); do
             # Increment the port number for the next run
             ((port++))
             # Allow some time for the process to initialize and potentially use GPU memory
-            sleep 120
+            sleep 20
             break 
         else
             echo "No GPU available at the moment. Retrying in 2 minute."
-            sleep 120 
+            sleep 20 
         fi
     done
 done

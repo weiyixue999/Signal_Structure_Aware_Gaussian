@@ -17,7 +17,7 @@ model_params: {
     init_point_max_points: 0,
     init_scale_max_ratio: 0.03,
     znear: 0.01,
-    zfar: 10000.0,
+    zfar: 1000.0,
 }
 
 # Pipeline Parameters
@@ -29,25 +29,27 @@ pipeline_params: {
 
 # Optimization Parameters
 optim_params: {
-    iterations: 15_000,
+    iterations: 30_000,
     position_lr_init: 0.00016,
     position_lr_final: 0.0000016,
     position_lr_delay_mult: 0.01,
-    position_lr_max_steps: 15_000,
+    position_lr_max_steps: 30_000,
     feature_lr: 0.0025,
     opacity_lr: 0.05,
     scaling_lr: 0.005,
     rotation_lr: 0.001,
     percent_dense: 0.01,
-    lambda_dssim: 0.2,
+    lambda_dssim: 0.3,
     densification_interval: 200,
     opacity_reset_interval: 1400,
     densify_from_iter: 500,
     densify_until_iter: 15_000,
-    densify_grad_threshold: 0.00016,
+    densify_grad_threshold: 0.00012,
     persistent_data_workers: True,
     data_prefetch_factor: 4,
-    chunk_cache_size: 500,
-    chunk_cache_iterations: 2500,
+    chunk_cache_size: 800,
+    chunk_cache_iterations: 4000,
     coarse_resolution_mode: "dynamic",  # "dynamic", "min", or an integer level.
+    resolution_slope_ratio_threshold: 0.05,
+    resolution_curvature_ratio_threshold: 0.0,
 }

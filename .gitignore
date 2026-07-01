@@ -17,6 +17,7 @@ env/
 # Training data and generated artifacts
 data/
 output/
+output*/
 output_old/
 logs/
 wandb/
