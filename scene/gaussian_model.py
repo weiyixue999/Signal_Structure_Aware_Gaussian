@@ -61,7 +61,7 @@ class GaussianModel:
         self.optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
-        self.max_offset_k = max_offset_k  # 自己加的
+        self.max_offset_k = max_offset_k
         self.setup_functions()
 
     def capture(self):
@@ -164,13 +164,13 @@ class GaussianModel:
         # voxel constraints
         self.anchors = torch.tensor(np.asarray(pcd.points)).float().cuda()
         
-        # 定义voxel_size
+        # Define the voxel size used by the anchor constraint.
         self.voxel_size = 2 * torch.sqrt(dist2)        
         self.voxel_size = self.voxel_size.unsqueeze(-1)
         
-        # print("初始的voxel_size: ", torch.mean(1/self.voxel_size))
+        # print("Initial voxel frequency:", torch.mean(1 / self.voxel_size))
 
-        #给定points, 计算其k近邻半径
+        # Alternative k-nearest-neighbor radius estimation for the input points.
         # pcd = np.asarray(pcd.points)
         # tree = KDTree(pcd, leaf_size=40, metric="euclidean")
         # dists, _ = tree.query(pcd, k=2)
@@ -285,7 +285,7 @@ class GaussianModel:
         xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
                         np.asarray(plydata.elements[0]["y"]),
                         np.asarray(plydata.elements[0]["z"])),  axis=1)
-        print("加载点云的尺寸：", xyz.shape)
+        print("Loaded point cloud size:", xyz.shape)
         property_names = [p.name for p in plydata.elements[0].properties]
         if not final:
             anchors = np.stack((np.asarray(plydata.elements[0]["anchors_x"]),
@@ -335,7 +335,7 @@ class GaussianModel:
         # # voxel constraints
         # self.anchors = torch.tensor(xyz).float().cuda()
         
-        # 给定points, 计算其k近邻半径
+        # Alternative k-nearest-neighbor radius estimation for the loaded points.
         # pcd = np.asarray(pcd.points)
         # tree = KDTree(pcd, leaf_size=40, metric="euclidean")
         # dists, _ = tree.query(pcd, k=2)
@@ -345,15 +345,15 @@ class GaussianModel:
         # D = D_tensor.mean(dim=1, keepdim=True)
         # self.voxel_size = D.float().cuda()
         if final:
-            # 如果加载测试，不需要load voxelsize与anchors
+            # Rendering a final model does not require voxel sizes or anchors.
             pass
         else:
             # voxel constraints
             self.anchors = torch.tensor(xyz).float().cuda()
             
-            # 给定points, 计算其k近邻半径
+            # Estimate the k-nearest-neighbor radius for loaded points.
             # pcd = np.asarray(pcd.points)
-            pcd = xyz                 # 在这里增加pcd = xyz   
+            pcd = xyz
             tree = KDTree(pcd, leaf_size=40, metric="euclidean")
             dists, _ = tree.query(pcd, k=10)
             D = dists[:,1:]
@@ -414,7 +414,7 @@ class GaussianModel:
         self.denom = self.denom[valid_points_mask]
         self.max_radii2D = self.max_radii2D[valid_points_mask]
         
-        #增加 voxel_size， anchors
+        # Keep voxel sizes and anchors aligned with the remaining Gaussians.
         self.voxel_size = self.voxel_size[valid_points_mask]
         self.anchors = self.anchors[valid_points_mask]
 
@@ -441,7 +441,7 @@ class GaussianModel:
         return optimizable_tensors
 
     def densification_postfix(self, new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation, new_anchors, new_voxel_size):
-        # TO DO：增加new_anchors, new_voxel_size
+        # Append new Gaussian parameters managed by the optimizer.
         d = {"xyz": new_xyz,
         "f_dc": new_features_dc,
         "f_rest": new_features_rest,
@@ -456,7 +456,7 @@ class GaussianModel:
         self._opacity = optimizable_tensors["opacity"]
         self._scaling = optimizable_tensors["scaling"]
         self._rotation = optimizable_tensors["rotation"]
-        #拼接，不是可优化变量， 不涉及到优化器
+        # Anchors and voxel sizes are constraints, not optimizer parameters.
         self.anchors = torch.cat((self.anchors,new_anchors),dim=0)
         self.voxel_size = torch.cat((self.voxel_size,new_voxel_size),dim=0)
         
@@ -466,42 +466,42 @@ class GaussianModel:
 
     def densify_and_split(self, grads, grad_threshold, scene_extent, N=2):  
         n_init_points = self.get_xyz.shape[0]
-        #梯度大于阈值的点需要分裂or复制， 找到这些点
+        # Select Gaussians whose accumulated gradients exceed the densification threshold.
         padded_grad = torch.zeros((n_init_points), device="cuda")
         padded_grad[:grads.shape[0]] = grads.squeeze()
         selected_pts_mask = torch.where(padded_grad >= grad_threshold, True, False)
-        #需要分裂的点，满足大于scale的阈值
+        # Split only Gaussians whose scale is larger than the scene-relative threshold.
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values > self.percent_dense*scene_extent)
 
-        #开始计算分裂变量，需要分裂的点，在空间中进行一次采样得到
+        # Sample child offsets in the local Gaussian coordinate frame.
         stds = self.get_scaling[selected_pts_mask].repeat(N,1)
         means =torch.zeros((stds.size(0), 3),device="cuda")
         samples = torch.normal(mean=means, std=stds)
-        rots = build_rotation(self._rotation[selected_pts_mask]).repeat(N,1,1) #原本的gs为xyz轴分布的gs，这里通过旋转变换为高斯分布的gs
+        rots = build_rotation(self._rotation[selected_pts_mask]).repeat(N,1,1)
         
-        #产生新点，这里不修改原始的高斯点，只是计算需要新加入的高斯点的部分
+        # Compute new Gaussian parameters; the original Gaussians are pruned below.
         new_xyz = torch.bmm(rots, samples.unsqueeze(-1)).squeeze(-1) + self.get_xyz[selected_pts_mask].repeat(N, 1)
         new_scaling = self.scaling_inverse_activation(self.get_scaling[selected_pts_mask].repeat(N,1) / (0.8*N))
         new_rotation = self._rotation[selected_pts_mask].repeat(N,1)
         new_features_dc = self._features_dc[selected_pts_mask].repeat(N,1,1)
         new_features_rest = self._features_rest[selected_pts_mask].repeat(N,1,1)
         new_opacity = self._opacity[selected_pts_mask].repeat(N,1)
-        # anchor一起更新，即当前分裂后的xyz点的坐标
+        # Update anchors to the split child positions.
         new_anchors = new_xyz
-        # anchor不更新， 留待测试，先更新
+        # Alternative: keep the original anchors for split children.
         # new_anchors = self.anchors[selected_pts_mask].repeat(N,1)
-        #半径更新为原来半径的0.8倍
+        # Shrink the local voxel size after splitting.
         new_voxel_size = self.voxel_size[selected_pts_mask].repeat(N,1) * 0.8
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacity, new_scaling, new_rotation, new_anchors, new_voxel_size)
 
-        #删除掉原本的旧点  
+        # Remove the original Gaussians that were split.
         prune_filter = torch.cat((selected_pts_mask, torch.zeros(N * selected_pts_mask.sum(), device="cuda", dtype=bool)))
         self.prune_points(prune_filter)
 
     def densify_and_clone(self, grads, grad_threshold, scene_extent):
-        #满足复制条件的点
+        # Select Gaussians that satisfy the cloning condition.
         selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
@@ -513,11 +513,11 @@ class GaussianModel:
         new_scaling = self._scaling[selected_pts_mask]
         new_rotation = self._rotation[selected_pts_mask]
         
-        # anchors一起更新
+        # Clone anchors together with the Gaussian positions.
         new_anchors = new_xyz
-        # anchor不更新， 留待测试，先更新
+        # Alternative: keep the original anchors for clones.
         # new_anchors = self.anchors[selected_pts_mask]#.repeat(N,1)
-        #半径更新为原来半径的0.1倍
+        # Keep the local voxel size unchanged for cloned Gaussians.
         new_voxel_size = self.voxel_size[selected_pts_mask] * 1
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation, new_anchors, new_voxel_size)
@@ -532,7 +532,7 @@ class GaussianModel:
         prune_mask1 = (self.get_opacity < min_opacity).squeeze()
         count1 = prune_mask1.sum().item()
         prune_mask2 = (self.get_offset > self.max_offset_k * self.voxel_size).squeeze()
-        # prune_mask2 = (self.get_offset > self.max_offset_k*self.voxel_size).any(dim=1)  #这里改为any(dim=1)
+        # prune_mask2 = (self.get_offset > self.max_offset_k*self.voxel_size).any(dim=1)
         
         count2 = prune_mask2.sum().item()
         print("dencify prune",count1,count2)
@@ -550,7 +550,7 @@ class GaussianModel:
 
     def prune_outlier(self, extent, max_screen_size):
         # prune_mask1 = (self.get_opacity < 0.05).squeeze()
-        prune_mask = (self.get_offset > 1.5 * self.max_offset_k * self.voxel_size).squeeze() #这里改为any(dim=1),原本是.squeeze()
+        prune_mask = (self.get_offset > 1.5 * self.max_offset_k * self.voxel_size).squeeze()
         # prune_mask = prune_mask1 | prune_mask
         self.prune_points(prune_mask)
     

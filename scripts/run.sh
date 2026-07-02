@@ -14,7 +14,7 @@ COARSE_CONFIG="rubble_coarse"
 CONFIG="rubble_c9_r4"
 
 # Change this one variable to move all generated training outputs.
-# Example: OUTPUT_ROOT=output_exp01 bash scripts/run_citygs.sh
+# Example: OUTPUT_ROOT=output_exp01 bash scripts/run.sh
 OUTPUT_ROOT="${OUTPUT_ROOT:-output_new_2}"
 COARSE_MODEL_PATH="$OUTPUT_ROOT/$COARSE_CONFIG"
 MODEL_PATH="$OUTPUT_ROOT/$CONFIG"

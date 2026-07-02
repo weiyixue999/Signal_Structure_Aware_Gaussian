@@ -129,7 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--disable_inblock", action="store_true")
     parser.add_argument("--simple_selection", type=float, default=0)
-    # parser.add_argument("--max_offset_k", type=int, default=10)     # 新增 传入max_offset_k
+    # parser.add_argument("--max_offset_k", type=int, default=10)
     args = parser.parse_args(sys.argv[1:])
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)

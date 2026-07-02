@@ -41,15 +41,15 @@ from PIL import Image
 
 def save_tensor_as_image(tensor, filename):
     #tensor: 3xHxW
-    #1.转换成numpy
+    # Convert to NumPy.
     np_image = tensor.detach().cpu().numpy()
-    #2.调整维度，变成HxWx3
+    # Convert from CxHxW to HxWxC.
     np_image = np.transpose(np_image, (1, 2, 0))
-    #3.映射到0-255
+    # Map to 0-255.
     np_image = (np_image * 255).clip(0, 255).astype(np.uint8)
-    #4.转成PIL Image
+    # Convert to a PIL image.
     img = Image.fromarray(np_image)
-    #5.保存
+    # Save to disk.
     img.save(filename)
 
 def get_expon_lr_func(
@@ -736,7 +736,7 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
                             gaussians.reset_opacity()
                             print("reset opacity")
                 
-                #删除错误优化的高斯点，在任何阶段
+                # Prune outlier Gaussians at any stage.
                 if iteration > opt.outlier_prune_start_iter and iteration % prune_outlier_iter == 0:
                     size_threshold = opt.outlier_prune_screen_size_scale * Scheduler.ratio
                     gaussians.prune_outlier(scene.cameras_extent, size_threshold)

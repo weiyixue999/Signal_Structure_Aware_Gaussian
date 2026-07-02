@@ -240,7 +240,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=None, partition=None):
 
 
 
-# 需要增加depth参数
+# Depth supervision fields are optional.
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png"):
     cam_infos = []
 

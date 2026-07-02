@@ -6,9 +6,13 @@ Weiyi Xue, Fan Lu, Chi Zhang, Tianhang Wang, Sanqing Qu, Zehan Zheng, Boyuan Zhe
 
 **ICLR 2026**
 
-**[Code](https://github.com/weiyixue999/Signal_Structure_Aware_Gaussian)**
+<!-- **[Code](https://github.com/weiyixue999/Signal_Structure_Aware_Gaussian)** -->
 
 </div>
+
+<p align="center">
+  <img src="assets/framework.png" width="95%" alt="Signal Structure-Aware Gaussian Splatting overview">
+</p>
 
 This repository contains the official PyTorch implementation of **Signal Structure-Aware Gaussian Splatting for Large-Scale Scene Reconstruction**.
 
@@ -34,6 +38,10 @@ The main implementation pieces are:
 - **SIG dynamic-resolution scheduler**: monitors Gaussian scale-frequency convergence and increases image resolution when the current level becomes stable.
 - **Staged densification**: couples densification with resolution changes so Gaussians are not over-optimized against high-frequency supervision too early.
 - **Sphere-Constrained Gaussians and Anchor-based adaptive control.**: Optimize Gaussians from the original geometric structure.
+
+<p align="center">
+  <img src="assets/comparision.png" width="95%" alt="Qualitative comparison">
+</p>
 
 ## Installation
 
@@ -65,8 +73,8 @@ This implementation uses the official 3DGS training-speed acceleration path, so 
 ```bash
 git clone --recursive https://github.com/graphdeco-inria/gaussian-splatting.git /tmp/gaussian-splatting
 cd /tmp/gaussian-splatting/submodules/diff-gaussian-rasterization
-pip uninstall diff-gaussian-rasterization -y
-rm -rf build
+# pip uninstall diff-gaussian-rasterization -y
+# rm -rf build
 git checkout 3dgs_accel
 pip install . --no-build-isolation
 
@@ -152,21 +160,21 @@ reproject_l1_weight_final: 0.01
 The recommended entry point is:
 
 ```bash
-bash scripts/run_citygs.sh
+bash scripts/run.sh
 ```
 
 The script runs coarse training, scene partitioning, block training, block merging, rendering, and metric evaluation.
 
-All generated outputs are rooted at `OUTPUT_ROOT`. The default is `output_new`:
+All generated outputs are rooted at `OUTPUT_ROOT`. The default in `scripts/run.sh` is `output_new_2`:
 
 ```bash
-OUTPUT_ROOT=output_new bash scripts/run_citygs.sh
+OUTPUT_ROOT=output_new_2 bash scripts/run.sh
 ```
 
-To move an experiment to another folder, either edit `OUTPUT_ROOT` once in `scripts/run_citygs.sh`, or override it at launch:
+To move an experiment to another folder, either edit `OUTPUT_ROOT` once in `scripts/run.sh`, or override it at launch:
 
 ```bash
-OUTPUT_ROOT=output_exp01 bash scripts/run_citygs.sh
+OUTPUT_ROOT=output_exp01 bash scripts/run.sh
 ```
 
 ## Important Configuration
