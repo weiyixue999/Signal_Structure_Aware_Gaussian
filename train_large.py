@@ -486,7 +486,11 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
 
     modules = __import__('scene')
     model_config = dataset.model_config
-    gaussians = getattr(modules, model_config['name'])(dataset.sh_degree,max_offset_k)
+    gaussians = getattr(modules, model_config['name'])(
+        dataset.sh_degree,
+        max_offset_k,
+        optimizer_type=getattr(opt, "optimizer_type", "default"),
+    )
     scene = LargeScene(dataset, gaussians)
     chunk_cache_size = int(getattr(opt, "chunk_cache_size", 0))
     gs_dataset = GSDataset(
@@ -739,7 +743,11 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
 
                 # Optimizer step
                 if iteration < opt.iterations:
-                    gaussians.optimizer.step()
+                    if getattr(opt, "optimizer_type", "default") == "sparse_adam":
+                        visible = radii > 0
+                        gaussians.optimizer.step(visible, radii.shape[0])
+                    else:
+                        gaussians.optimizer.step()
                     gaussians.optimizer.zero_grad(set_to_none = True)
 
                 # Log and save
@@ -762,13 +770,14 @@ def prepare_output_and_logger(args):
         config_name = os.path.splitext(os.path.basename(args.config))[0]
         # time_stamp = time.strftime("%Y%m%d%H%M%S", time.localtime(time.time()))
         args.model_path = os.path.join("./output/", config_name)
-        if args.block_id >= 0:
-            if args.block_id < args.block_dim[0] * args.block_dim[1] * args.block_dim[2]:
-                args.model_path = f"{args.model_path}/cells/cell{args.block_id}"
-                if args.logger_config is not None:
-                    args.logger_config['name'] = f"{args.logger_config['name']}_cell{args.block_id}"
-            else:
-                raise ValueError("Invalid block_id: {}".format(args.block_id))
+
+    if args.block_id >= 0:
+        if args.block_id < args.block_dim[0] * args.block_dim[1] * args.block_dim[2]:
+            args.model_path = os.path.join(args.model_path, "cells", f"cell{args.block_id}")
+            if args.logger_config is not None:
+                args.logger_config['name'] = f"{args.logger_config['name']}_cell{args.block_id}"
+        else:
+            raise ValueError("Invalid block_id: {}".format(args.block_id))
         
     # Set up output folder
     print("Output folder: {}".format(args.model_path))
@@ -852,6 +861,8 @@ if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Training script parameters")
     parser.add_argument('--config', type=str, help='train config file path')
+    parser.add_argument('--model_path', type=str, default=None, help='override output model path from config')
+    parser.add_argument('--pretrain_path', type=str, default=None, help='override coarse point cloud path from config')
     parser.add_argument('--ip', type=str, default="127.0.0.1")
     parser.add_argument('--port', type=int, default=6009)
     parser.add_argument('--debug_from', type=int, default=-1)
@@ -869,6 +880,7 @@ if __name__ == "__main__":
     parser.add_argument("--prune_outlier_iter", type=int, default=800)
     parser.add_argument("--coarse_train", action="store_true", default=False)
     parser.add_argument("--no_dynamic_res", action="store_true", default=False)
+    parser.add_argument("--optimizer_type", type=str, default=None, choices=["default", "sparse_adam"])
     args = parser.parse_args(sys.argv[1:])
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)

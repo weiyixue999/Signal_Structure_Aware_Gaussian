@@ -122,6 +122,8 @@ if __name__ == "__main__":
     # Set up command line argument parser
     parser = ArgumentParser(description="Training script parameters")
     parser.add_argument('--config', type=str, help='train config file path')
+    parser.add_argument('--model_path', type=str, default=None, help='override output model path from config')
+    parser.add_argument('--pretrain_path', type=str, default=None, help='override coarse point cloud path from config')
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true')
     parser.add_argument("--quiet", action="store_true")

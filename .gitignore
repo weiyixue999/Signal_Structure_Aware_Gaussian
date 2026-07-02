@@ -19,6 +19,8 @@ data/
 output/
 output*/
 output_old/
+checkpoints/
+third_party/
 logs/
 wandb/
 lightning_logs/
@@ -27,6 +29,7 @@ runs/
 # Large local files generated during experiments
 *.ply
 *.dump
+*.pdf
 cameras.json
 
 # Editor and OS noise

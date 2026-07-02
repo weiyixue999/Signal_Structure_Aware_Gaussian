@@ -132,8 +132,6 @@ if __name__ == "__main__":
     parser.add_argument("--skip_test", action="store_true")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(sys.argv[1:])
-    if args.model_path is None:
-        args.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
 
     # Initialize system state (RNG)
     safe_state(args.quiet)
@@ -141,5 +139,7 @@ if __name__ == "__main__":
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
         lp, op, pp = parse_cfg(cfg, args)
+    if not lp.model_path:
+        lp.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
 
     render_sets(lp, args.iteration, pp, args.skip_train, args.skip_test, args.custom_test)

@@ -35,7 +35,7 @@ def loadCam(cam_info, image_scale, znear=0.01, zfar=100.0):
         if depth_mono_inv.ndim != 2: depth_mono_inv = depth_mono_inv[..., 0]
         depth_mono_inv = cv2.resize(depth_mono_inv, (resized_image_rgb.shape[2], resized_image_rgb.shape[1]), interpolation=cv2.INTER_NEAREST) / 255.0
         depth_inv = depth_mono_inv * scale + offset
-        depth_inv = torch.tensor(depth_inv)
+        depth_inv = torch.as_tensor(depth_inv, dtype=torch.float32)
     else:
         depth_inv = "none"
     

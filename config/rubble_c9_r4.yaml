@@ -7,8 +7,8 @@ model_params: {
     sh_degree: 3,
     source_path: "data/rubble/train",                     
     partition_name: "rubble_c9_r4",
-    pretrain_path: "output/rubble_coarse/point_cloud",
-    model_path: "",
+    pretrain_path: "output_new/rubble_coarse/point_cloud",
+    model_path: "output_new/rubble_c9_r4",
     images: "images",
     block_dim: [2, 1, 2], 
     aabb: [-50, -100, -135, 50, 300, -5],
@@ -18,7 +18,7 @@ model_params: {
     data_device: "cuda",
     eval: False,
     znear: 0.01,
-    zfar: 10000.0,
+    zfar: 1000.0,
 }
 
 # Pipeline Parameters
@@ -42,6 +42,7 @@ optim_params: {
     rotation_lr: 0.001,
     percent_dense: 0.01,
     lambda_dssim: 0.25,
+    optimizer_type: "sparse_adam",  # "sparse_adam" requires accelerated diff_gaussian_rasterization; use "default" for torch.optim.Adam.
     densification_interval: 200,
     opacity_reset_interval: 500000, # False
     densify_from_iter: 1000,
@@ -54,16 +55,17 @@ optim_params: {
     resolution_end_level: 5,
     block_resolution_start: "min",  # "min", "coarse", or an integer level.
     resolution_update_interval: 100,
-    resolution_metric_window: 8,
-    resolution_slope_ratio_threshold: 0.05,
+    resolution_metric_window: 5,
+    resolution_slope_ratio_threshold: 0.3,
     resolution_curvature_ratio_threshold: 0.1,
     resolution_stable_windows: 3,
+    use_coarse_slope_ref: False,  # True: use coarse coarse_ref_slope; False: estimate slope_ref online per level.
     densify_stage_start: 500,
     densify_stage_end: 3000,
     extend_densify_on_resolution_change: True,
 
     persistent_data_workers: True,
     data_prefetch_factor: 4,
-    chunk_cache_size: 800,
-    chunk_cache_iterations: 4000,
+    chunk_cache_size: 1000,
+    chunk_cache_iterations: 6000,
 }

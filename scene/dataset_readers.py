@@ -72,6 +72,14 @@ def getNerfppNorm(cam_info):
 
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
     cam_infos = []
+    scene_dir = Path(images_folder).parent
+    depth_param_jsonpath = scene_dir / "sparse/0/depth_params.json"
+    depth_params = None
+    if depth_param_jsonpath.exists():
+        with open(depth_param_jsonpath, "r") as file:
+            depth_params = json.load(file)
+        print(f"Loaded depth params: {depth_param_jsonpath} ({len(depth_params)} images)")
+
     for idx, key in enumerate(cam_extrinsics):
         sys.stdout.write('\r')
         # the exact output you're looking for:
@@ -112,19 +120,14 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
         image = Image.open(image_path)
-        
-        try:
-            path = Path(images_folder)
-            scene_dir = path.parent
-            depth_param_jsonpath = os.path.join(scene_dir, "sparse/0/depth_params.json")
-            with open(depth_param_jsonpath, 'r') as file:
-                depth_params = json.load(file)
-        except:
-            depth_params = None
-            print("Depth map is not loaded")
-        if depth_params is not None:
-            depth_param = depth_params[image_name]
-            depth_filepath = os.path.join(scene_dir, "depth_any", extr.name.split(".")[0]+".png")
+
+        depth_param = None
+        depth_filepath = None
+        if depth_params is not None and image_name in depth_params:
+            candidate_depth_path = scene_dir / "depth_any" / f"{image_name}.png"
+            if candidate_depth_path.exists():
+                depth_param = depth_params[image_name]
+                depth_filepath = str(candidate_depth_path)
         else:
             depth_param = None
             depth_filepath = None

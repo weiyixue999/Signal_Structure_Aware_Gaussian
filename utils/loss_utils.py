@@ -198,7 +198,14 @@ def src2ref(ref_intrinsic, ref_extrinsic, ref_view_depth, dummy_intrinsic, dummy
 
 
 def loss_reproj(reprojected_depth, reprojected_image, image_gt):
-    mask = (reprojected_depth == 0)
-    mask = mask.expand_as(image_gt)
-    loss = torch.abs(image_gt - reprojected_image)[mask].mean()
-    return loss
+    valid_mask = reprojected_depth > 0
+    if not valid_mask.any():
+        return image_gt.new_zeros(())
+    loss = torch.abs(image_gt - reprojected_image)
+    if loss.dim() == 4:
+        valid_mask = valid_mask.unsqueeze(0).unsqueeze(0).expand(loss.shape[0], loss.shape[1], -1, -1)
+    elif loss.dim() == 3:
+        valid_mask = valid_mask.unsqueeze(0).expand_as(loss)
+    else:
+        raise ValueError(f"Unexpected reprojection loss shape: {tuple(loss.shape)}")
+    return loss[valid_mask].mean()

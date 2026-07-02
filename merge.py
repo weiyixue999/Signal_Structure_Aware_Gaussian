@@ -85,11 +85,11 @@ if __name__ == "__main__":
     parser.add_argument('--model_path', type=str, help='model path of fused model')
     parser.add_argument("--iteration", default=30_000, type=int)
     args = parser.parse_args(sys.argv[1:])
-    if args.model_path is None:
-        args.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
 
     with open(args.config) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
         lp, op, pp = parse_cfg(cfg, args)
+    if not lp.model_path:
+        lp.model_path = os.path.join('output', os.path.basename(args.config).split('.')[0])
 
     blockMerge(lp, args.iteration)

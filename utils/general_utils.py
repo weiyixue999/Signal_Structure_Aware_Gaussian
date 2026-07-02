@@ -236,6 +236,7 @@ def get_default_op():
     op.depth_l1_weight_final = 0.1
     op.reproject_l1_weight_init = 0.1
     op.reproject_l1_weight_final = 0.01
+    op.optimizer_type = "sparse_adam"
 
     return op
 
@@ -253,7 +254,7 @@ def extract_args(params, cfg, args=None):
 
     if args is not None:
         for arg in vars(args).items():
-            if arg[0] in vars(params):
+            if arg[0] in vars(params) and arg[1] is not None:
                 setattr(params, arg[0], arg[1])
 
 
