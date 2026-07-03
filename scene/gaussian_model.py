@@ -535,14 +535,14 @@ class GaussianModel:
         # prune_mask2 = (self.get_offset > self.max_offset_k*self.voxel_size).any(dim=1)
         
         count2 = prune_mask2.sum().item()
-        print("dencify prune",count1,count2)
+        # print("dencify prune",count1,count2)
         prune_mask = prune_mask1 | prune_mask2
         
         if max_screen_size:
             big_points_vs = self.max_radii2D > max_screen_size
             big_points_ws = self.get_scaling.max(dim=1).values > 0.05 * extent
-            print(big_points_vs.sum().item(),"big_points_vs removed")
-            print(big_points_ws.sum().item(),"big_points_ws removed")
+            # print(big_points_vs.sum().item(),"big_points_vs removed")
+            # print(big_points_ws.sum().item(),"big_points_ws removed")
             prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
         self.prune_points(prune_mask)
 

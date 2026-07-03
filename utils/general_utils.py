@@ -212,6 +212,9 @@ def get_default_op():
     op.data_prefetch_factor = 4
     op.chunk_cache_size = 0
     op.chunk_cache_iterations = 2500
+    op.gpu_resize_cache = False
+    op.gpu_resize_mode = "bicubic"
+    op.gpu_cache_after_resize = False
     # Dynamic-resolution training. Levels are integer multipliers in [1, 5],
     # where 5 means the resolution requested by model_params.resolution.
     op.dynamic_resolution = True

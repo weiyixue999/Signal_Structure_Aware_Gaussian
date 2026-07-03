@@ -8,6 +8,13 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
+from pathlib import Path as _Path
+import sys as _sys
+
+_PROJECT_ROOT = _Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_PROJECT_ROOT))
+
 import time
 import yaml
 import os
@@ -119,6 +126,7 @@ class DynamicResolutionScheduler:
         self.max_positive_slope = 0.0
         self.global_max_positive_slope = 0.0
         self.last_plateau_stats = None
+        self.last_metric = None
         self.dataset.reset_down_ratio(self.level)
         self.resolution_events = []
         self.metric_records = []
@@ -202,20 +210,28 @@ class DynamicResolutionScheduler:
             return False
 
         metric = self.compute_scale_frequency_metric(gaussians)
+        self.last_metric = metric
         self.update_stability_metric(metric)
         self._record_metric(iteration, metric)
+        return self.maybe_increase_resolution(iteration, metric)
+
+    def progress_postfix(self):
+        postfix = {
+            "res": f"{self.ratio}/{self.max_level}",
+            "stable": f"{self.stable_windows}/{self.stable_windows_required}",
+        }
+        if self.last_metric is not None:
+            postfix["metric"] = f"{self.last_metric:.4f}"
         if self.last_plateau_stats is not None:
             stats = self.last_plateau_stats
-            print(
-                "resolution plateau stats: "
-                f"level={self.ratio}/{self.max_level}, "
-                f"metric={metric:.6f}, "
-                f"slope_ref={stats['slope_ref']:.6f}, "
-                f"slope_ratio={stats['normalized_slope']:.4f}, "
-                f"curvature_ratio={stats['normalized_curvature']:.4f}, "
-                f"stable_windows={self.stable_windows}/{self.stable_windows_required}"
+            postfix.update(
+                {
+                    "slope": f"{stats['normalized_slope']:.4f}",
+                    "curv": f"{stats['normalized_curvature']:.4f}",
+                    "sref": f"{stats['slope_ref']:.4f}",
+                }
             )
-        return self.maybe_increase_resolution(iteration, metric)
+        return postfix
 
     def maybe_increase_resolution(self, iteration, metric=None):
         if self.lock_resolution_level:
@@ -245,7 +261,7 @@ class DynamicResolutionScheduler:
         self.last_plateau_stats = None
         if self.extend_densify:
             self.extra_densify_iters += unfinished_densify_iters
-        print(f"Increase training resolution level to {self.level}/{self.max_level}.")
+        tqdm.write(f"Increase training resolution level to {self.level}/{self.max_level}.")
         return True
 
     def _resolution_info(self):
@@ -503,6 +519,9 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
         num_preload_workers=opt.data_loader_workers,
         znear=dataset.znear,
         zfar=dataset.zfar,
+        gpu_resize_cache=opt.gpu_resize_cache,
+        gpu_resize_mode=opt.gpu_resize_mode,
+        gpu_cache_after_resize=opt.gpu_cache_after_resize,
     )
     # if len(gs_dataset) > 0:
     #     print(f"Using maximum cache size of {max_cache_num} for {len(gs_dataset)} training images")
@@ -515,11 +534,21 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
     #         num_workers=8,
     #         pin_memory=True
     #     )
+    if bool(opt.gpu_cache_after_resize) and chunk_cache_size <= 0 and opt.data_loader_workers > 0:
+        print(
+            "gpu_cache_after_resize=True with regular DataLoader can return CUDA "
+            "tensors from worker processes. Forcing data_loader_workers=0. "
+            "Prefer enabling chunk_cache_size for GPU image caching."
+        )
+        opt.data_loader_workers = 0
+
     if chunk_cache_size > 0:
         print(
             "Using chunked image cache: "
             f"{chunk_cache_size} images for "
-            f"{int(opt.chunk_cache_iterations)} iterations per chunk."
+            f"{int(opt.chunk_cache_iterations)} iterations per chunk, "
+            f"gpu_resize_cache={bool(opt.gpu_resize_cache)}, "
+            f"gpu_cache_after_resize={bool(opt.gpu_cache_after_resize)}."
         )
         data_loader = ChunkedCacheDataLoader(
             gs_dataset,
@@ -686,7 +715,9 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
                 # Progress bar
                 ema_loss_for_log = 0.4 * loss.item() + 0.6 * ema_loss_for_log
                 if iteration % 10 == 0:
-                    progress_bar.set_postfix({"Loss": f"{ema_loss_for_log:.{7}f}"})
+                    postfix = {"Loss": f"{ema_loss_for_log:.{7}f}"}
+                    postfix.update(Scheduler.progress_postfix())
+                    progress_bar.set_postfix(postfix)
                     progress_bar.update(10)
                 if iteration == opt.iterations:
                     progress_bar.close()
@@ -757,8 +788,15 @@ def training(dataset, opt, pipe, no_dynamic_res, coarse_train, prune_outlier_ite
             iteration += 1
             
             if Scheduler.update_resolution_if_needed(iteration, gaussians):
-                print("update_ratio_iteration:",iteration)
+                postfix = {"Loss": f"{ema_loss_for_log:.{7}f}"}
+                postfix.update(Scheduler.progress_postfix())
+                progress_bar.set_postfix(postfix)
+                tqdm.write(f"update_ratio_iteration: {iteration}")
                 break
+            if iteration % Scheduler.update_interval == 0:
+                postfix = {"Loss": f"{ema_loss_for_log:.{7}f}"}
+                postfix.update(Scheduler.progress_postfix())
+                progress_bar.set_postfix(postfix)
             Scheduler.step_iteration()
             
             if iteration >= opt.iterations:

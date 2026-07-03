@@ -9,6 +9,13 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
+from pathlib import Path as _Path
+import sys as _sys
+
+_PROJECT_ROOT = _Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_PROJECT_ROOT))
+
 from pathlib import Path
 import os
 from PIL import Image

@@ -57,6 +57,9 @@ class GSDataset(Dataset):
         num_preload_workers=8,
         znear=0.01,
         zfar=100.0,
+        gpu_resize_cache=False,
+        gpu_resize_mode="bicubic",
+        gpu_cache_after_resize=False,
     ):
         self.cameras = cameras
         self.scale = scale
@@ -68,6 +71,9 @@ class GSDataset(Dataset):
         self.num_preload_workers = max(1, int(num_preload_workers))
         self.znear = znear
         self.zfar = zfar
+        self.gpu_resize_cache = bool(gpu_resize_cache)
+        self.gpu_resize_mode = str(gpu_resize_mode)
+        self.gpu_cache_after_resize = bool(gpu_cache_after_resize)
         self._cache = OrderedDict()
         if self.no_dynamic_res:
             self.image_re_scale = self.max_resolution_level
@@ -105,7 +111,15 @@ class GSDataset(Dataset):
     def _load_single_sample(self, camera, image_scale=None):
         if image_scale is None:
             image_scale = self.image_ini_scale * self.image_re_scale / self.max_resolution_level
-        viewpoint_cam = loadCam(camera, image_scale, znear=self.znear, zfar=self.zfar)
+        viewpoint_cam = loadCam(
+            camera,
+            image_scale,
+            znear=self.znear,
+            zfar=self.zfar,
+            gpu_resize=self.gpu_resize_cache,
+            gpu_resize_mode=self.gpu_resize_mode,
+            gpu_cache_after_resize=self.gpu_cache_after_resize,
+        )
         x = {
             "FoVx": viewpoint_cam.FoVx,
             "FoVy": viewpoint_cam.FoVy,

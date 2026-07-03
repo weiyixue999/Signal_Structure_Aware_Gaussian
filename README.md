@@ -30,7 +30,7 @@ The original implementation caches all training images at multiple resolutions, 
 
 The training pipeline follows a coarse-to-fine large-scale Gaussian reconstruction workflow:
 
-1. Train a coarse global Gaussian model.
+1. Train a coarse global Gaussian model. (This model will be trained at a lower image resolution, so it is less likely to run out of memory.)
 2. Partition the scene into spatial blocks using the coarse model.
 3. Train each block from low image resolution and increase resolution adaptively.
 4. Merge block Gaussians into a fused model.
@@ -124,6 +124,13 @@ config/rubble_coarse.yaml
 config/rubble_c9_r4.yaml
 ```
 
+Optional COLMAP conversion helpers are provided under `utils/`:
+
+```text
+utils/convert.py      # Run COLMAP matching, mapping, undistortion, and optional image resizing.
+utils/convert_cam.py  # Triangulate points from an existing sparse camera model, then undistort images.
+```
+
 ## Optional DepthAnythingV2 Supervision
 
 Depth regularization is enabled automatically when the train split contains:
@@ -163,21 +170,21 @@ reproject_l1_weight_final: 0.01
 The recommended entry point is:
 
 ```bash
-bash scripts/run.sh
+bash run.sh
 ```
 
 The script runs coarse training, scene partitioning, block training, block merging, rendering, and metric evaluation.
 
-All generated outputs are rooted at `OUTPUT_ROOT`. The default in `scripts/run.sh` is `output_new_2`:
+All generated outputs are rooted at `OUTPUT_ROOT`. The default in `run.sh` is `output_new_1`:
 
 ```bash
-OUTPUT_ROOT=output_new_2 bash scripts/run.sh
+OUTPUT_ROOT=output_new_1 bash run.sh
 ```
 
-To move an experiment to another folder, either edit `OUTPUT_ROOT` once in `scripts/run.sh`, or override it at launch:
+To move an experiment to another folder, either edit `OUTPUT_ROOT` once in `run.sh`, or override it at launch:
 
 ```bash
-OUTPUT_ROOT=output_exp01 bash scripts/run.sh
+OUTPUT_ROOT=output_exp01 bash run.sh
 ```
 
 ## Important Configuration
@@ -191,8 +198,8 @@ iterations: 30000
 resolution: 4
 coarse_resolution_mode: "dynamic"
 optimizer_type: "sparse_adam"
-chunk_cache_size: 2000
-chunk_cache_iterations: 10000
+chunk_cache_size: 1700
+chunk_cache_iterations: 60000
 init_point_max_points: 0
 init_point_extent_multiplier: 0.0
 ```
@@ -276,7 +283,17 @@ chunk_cache_size: 500
 chunk_cache_iterations: 2500
 ```
 
-The current Rubble fine-training config uses `chunk_cache_size: 1200` and `chunk_cache_iterations: 6000`; reduce these values on machines with less CPU memory.
+The current Rubble fine-training config uses `chunk_cache_size: 1000` and `chunk_cache_iterations: 6000`; reduce these values on machines with less CPU memory.
+
+Image resizing during cache construction can optionally run on GPU:
+
+```yaml
+gpu_resize_cache: True
+gpu_resize_mode: "bicubic"
+gpu_cache_after_resize: True
+```
+
+When `gpu_resize_cache` is enabled, source images are decoded on CPU and resized on GPU with `torch.nn.functional.interpolate`. If `gpu_cache_after_resize` is also enabled, the resized tensors remain in the GPU chunk cache instead of being moved back to CPU. This avoids per-iteration image copies, but the chunk cache will consume GPU memory; use a smaller `chunk_cache_size` if VRAM becomes tight.
 
 The loader behavior is:
 
@@ -353,6 +370,8 @@ or start blocks from the coarse level:
 ```yaml
 block_resolution_start: "coarse"
 ```
+### Out of Memory
+During densification, too many Gaussians may be generated, which can lead to OOM errors. To address this issue, simply increase the gradient threshold for densification. For example, in `rubble_c9_r4.yaml`, change `densify_grad_threshold` from `0.00012` to `0.0002`.
 
 ### Training speed
 
