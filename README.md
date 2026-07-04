@@ -188,7 +188,7 @@ OUTPUT_ROOT=output_exp01 bash run.sh
 Useful fields in `config/rubble_coarse.yaml`:
 
 ```yaml
-iterations: 30000
+iterations: 20000
 resolution: 4
 coarse_resolution_mode: "dynamic"
 optimizer_type: "sparse_adam"
@@ -355,15 +355,10 @@ output_new/<scene>/cells/cell*/resolution_metrics.csv
 Then relax the scheduler thresholds:
 
 ```yaml
-resolution_slope_ratio_threshold: 0.4
+resolution_slope_ratio_threshold: 0.2
 resolution_stable_windows: 1
 ```
 
-or start blocks from the coarse level:
-
-```yaml
-block_resolution_start: "coarse"
-```
 ### Out of Memory
 During densification, too many Gaussians may be generated, which can lead to OOM errors. To address this issue, simply increase the gradient threshold for densification. For example, in `rubble_c9_r4.yaml`, change `densify_grad_threshold` from `0.00012` to `0.00015`.
 
