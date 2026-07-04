@@ -6,7 +6,7 @@ Weiyi Xue, Fan Lu, Chi Zhang, Tianhang Wang, Sanqing Qu, Zehan Zheng, Boyuan Zhe
 
 **ICLR 2026**
 
-<!-- **[Code](https://github.com/weiyixue999/Signal_Structure_Aware_Gaussian)** -->
+**[Paper](https://arxiv.org/pdf/2607.01698v1)**
 
 </div>
 
