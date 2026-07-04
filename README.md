@@ -18,7 +18,8 @@ This repository contains the official PyTorch implementation of **Signal Structu
 
 Large-scale scenes often contain sparse or unevenly observed regions. Directly supervising low-frequency sparse COLMAP initialization with high-frequency images can cause uncontrolled densification and redundant Gaussian primitives. This project implements a frequency-aware training pipeline that synchronizes image supervision resolution with Gaussian frequency evolution, and adds geometry-aware regularization for more stable large-scale reconstruction.
 
-The original implementation caches all training images at multiple resolutions, which requires substantial GPU memory and is therefore not suitable for common consumer GPUs such as the RTX 4090. To improve usability, we have refactored the code and optimized the strategy for determining frequency convergence. This version is slightly different from the implementation described in the paper, but it is more concise and no longer requires manually tuning parameters according to the scene scale. Currently, the performance of this refactored version is slightly lower than that of the original implementation, but it still achieves state-of-the-art results. We will continue to update and improve the code in future releases.
+The original implementation caches all training images at multiple resolutions, which requires substantial GPU memory and is therefore not suitable for common consumer GPUs such as the RTX 4090. To improve usability, we have refactored the code and optimized the strategy for determining frequency convergence. This version is slightly different from the implementation described in the paper, but it is more concise and no longer requires manually tuning parameters according to the scene scale. 
+Currently, the performance of this refactored version is slightly lower than that of the original implementation ( On Mill-19 Rubble, the paper reports PSNR, SSIM, and LPIPS scores of 27.35, 0.843, and 0.189, respectively. In this version, the corresponding scores are 27.31, 0.837, and 0.199, respectively. The total time for coarse and block training is approximately 1 hour and 15 minutes.), but it still achieves state-of-the-art results. We will continue to update and improve the code in future releases.
 
 
 ## News
@@ -122,13 +123,6 @@ The Rubble configs are:
 ```text
 config/rubble_coarse.yaml
 config/rubble_c9_r4.yaml
-```
-
-Optional COLMAP conversion helpers are provided under `utils/`:
-
-```text
-utils/convert.py      # Run COLMAP matching, mapping, undistortion, and optional image resizing.
-utils/convert_cam.py  # Triangulate points from an existing sparse camera model, then undistort images.
 ```
 
 ## Optional DepthAnythingV2 Supervision

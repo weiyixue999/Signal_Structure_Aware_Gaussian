@@ -6,7 +6,7 @@ CONFIG="rubble_c9_r4"
 
 # Change this one variable to move all generated training outputs.
 # Example: OUTPUT_ROOT=output_exp01 bash run.sh
-OUTPUT_ROOT="${OUTPUT_ROOT:-test_rubble3}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-test_rubble5}"
 COARSE_MODEL_PATH="$OUTPUT_ROOT/$COARSE_CONFIG"
 MODEL_PATH="$OUTPUT_ROOT/$CONFIG"
 COARSE_POINT_CLOUD_PATH="$COARSE_MODEL_PATH/point_cloud"

@@ -47,7 +47,7 @@ optim_params: {
     opacity_reset_interval: 999999999, # False
     densify_from_iter: 1000,
     # densify_until_iter: 15_000,
-    densify_grad_threshold: 0.00012,
+    densify_grad_threshold: 0.000125,
 
     # Dynamic-resolution scheduler for block/fine training.
     dynamic_resolution: True,
