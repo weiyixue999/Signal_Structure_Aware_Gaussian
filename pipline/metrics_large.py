@@ -43,8 +43,7 @@ def readImages(renders_dir, gt_dir):
 
 
 def evaluate(model_paths, test_sets, correct_color=True):
-    # hard code for better result
-    correct_color = True
+    # correct_color = True
 
     full_dict = {}
     per_view_dict = {}
@@ -137,6 +136,6 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Training script parameters")
     parser.add_argument('--model_paths', '-m', required=True, nargs="+", type=str, default=[])
     parser.add_argument('--test_sets', '-t', required=False, nargs="+", type=str, default=["test"])
-    parser.add_argument('--correct_color', '-c', action='store_true', default=False)
+    # parser.add_argument('--correct_color', '-c', action='store_false', default=True)
     args = parser.parse_args()
-    evaluate(args.model_paths, args.test_sets, args.correct_color)
+    evaluate(args.model_paths, args.test_sets)

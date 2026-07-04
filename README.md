@@ -371,7 +371,7 @@ or start blocks from the coarse level:
 block_resolution_start: "coarse"
 ```
 ### Out of Memory
-During densification, too many Gaussians may be generated, which can lead to OOM errors. To address this issue, simply increase the gradient threshold for densification. For example, in `rubble_c9_r4.yaml`, change `densify_grad_threshold` from `0.00012` to `0.0002`.
+During densification, too many Gaussians may be generated, which can lead to OOM errors. To address this issue, simply increase the gradient threshold for densification. For example, in `rubble_c9_r4.yaml`, change `densify_grad_threshold` from `0.00012` to `0.00015`.
 
 ### Training speed
 

@@ -6,7 +6,7 @@ CONFIG="rubble_c9_r4"
 
 # Change this one variable to move all generated training outputs.
 # Example: OUTPUT_ROOT=output_exp01 bash run.sh
-OUTPUT_ROOT="${OUTPUT_ROOT:-output_new_6}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-test_rubble3}"
 COARSE_MODEL_PATH="$OUTPUT_ROOT/$COARSE_CONFIG"
 MODEL_PATH="$OUTPUT_ROOT/$CONFIG"
 COARSE_POINT_CLOUD_PATH="$COARSE_MODEL_PATH/point_cloud"
@@ -46,23 +46,23 @@ run_on_gpu() {
 
 echo "Output root: $OUTPUT_ROOT"
 
-# # Train coarse global Gaussian model.
-# gpu_id="$(wait_for_gpu)"
-# run_on_gpu "$gpu_id" \
-#     python pipline/train_large.py \
-#     --config "config/$COARSE_CONFIG.yaml" \
-#     --model_path "$COARSE_MODEL_PATH" \
-#     --max_offset_k 25 \
-#     --prune_outlier_iter 800 \
-#     --coarse_train
+# Train coarse global Gaussian model.
+gpu_id="$(wait_for_gpu)"
+run_on_gpu "$gpu_id" \
+    python pipline/train_large.py \
+    --config "config/$COARSE_CONFIG.yaml" \
+    --model_path "$COARSE_MODEL_PATH" \
+    --max_offset_k 25 \
+    --prune_outlier_iter 800 \
+    --coarse_train
 
-# # Partition the scene.
-# gpu_id="$(wait_for_gpu)"
-# run_on_gpu "$gpu_id" \
-#     python pipline/data_partition.py \
-#     --config "config/$CONFIG.yaml" \
-#     --model_path "$MODEL_PATH" \
-#     --pretrain_path "$COARSE_POINT_CLOUD_PATH"
+# Partition the scene.
+gpu_id="$(wait_for_gpu)"
+run_on_gpu "$gpu_id" \
+    python pipline/data_partition.py \
+    --config "config/$CONFIG.yaml" \
+    --model_path "$MODEL_PATH" \
+    --pretrain_path "$COARSE_POINT_CLOUD_PATH"
 
 # Optimize each block.
 pids=()
@@ -93,7 +93,7 @@ run_on_gpu "$gpu_id" \
     python pipline/merge.py \
     --config "config/$CONFIG.yaml" \
     --model_path "$MODEL_PATH" \
-    --iteration 30000
+    --iteration 40000
 
 # Render and evaluate.
 gpu_id="$(wait_for_gpu)"

@@ -31,17 +31,17 @@ pipeline_params: {
 
 # Optimization Parameters
 optim_params: {
-    iterations: 30_000,
+    iterations: 40_000,
     position_lr_init: 0.000064,
     position_lr_final: 0.00000064,
     position_lr_delay_mult: 0.01,
-    position_lr_max_steps: 30_000,
+    position_lr_max_steps: 40_000,
     feature_lr: 0.0025,
     opacity_lr: 0.02,
     scaling_lr: 0.004,
     rotation_lr: 0.001,
     percent_dense: 0.01,
-    lambda_dssim: 0.3,
+    lambda_dssim: 0.33,
     optimizer_type: "sparse_adam",  # "sparse_adam" requires accelerated diff_gaussian_rasterization; use "default" for torch.optim.Adam.
     densification_interval: 200,
     opacity_reset_interval: 999999999, # False
@@ -61,7 +61,7 @@ optim_params: {
     resolution_stable_windows: 5,
     use_coarse_slope_ref: False,  # True: use coarse coarse_ref_slope; False: estimate slope_ref online per level.
     densify_stage_start: 500,
-    densify_stage_end: 3500,
+    densify_stage_end: 3000,
     extend_densify_on_resolution_change: True,
 
     persistent_data_workers: True,

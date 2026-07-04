@@ -13,7 +13,7 @@ venv/
 env/
 *.ipynb
 .ipynb_checkpoints/
-
+test*
 # Training data and generated artifacts
 data/
 output/
