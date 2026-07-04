@@ -19,7 +19,7 @@ This repository contains the official PyTorch implementation of **Signal Structu
 Large-scale scenes often contain sparse or unevenly observed regions. Directly supervising low-frequency sparse COLMAP initialization with high-frequency images can cause uncontrolled densification and redundant Gaussian primitives. This project implements a frequency-aware training pipeline that synchronizes image supervision resolution with Gaussian frequency evolution, and adds geometry-aware regularization for more stable large-scale reconstruction.
 
 The original implementation caches all training images at multiple resolutions, which requires substantial GPU memory and is therefore not suitable for common consumer GPUs such as the RTX 4090. To improve usability, we have refactored the code and optimized the strategy for determining frequency convergence. This version is slightly different from the implementation described in the paper, but it is more concise and no longer requires manually tuning parameters according to the scene scale. 
-Currently, the performance of this refactored version is slightly lower than that of the original implementation ( On Mill-19 Rubble, the paper reports PSNR, SSIM, and LPIPS scores of 27.35, 0.843, and 0.189, respectively. In this version, the corresponding scores are 27.31, 0.837, and 0.199, respectively. The total time for coarse and block training is approximately 1 hour and 15 minutes.), but it still achieves state-of-the-art results. We will continue to update and improve the code in future releases.
+On Mill-19 Rubble, in this version, the corresponding scores are 27.31, 0.837, and 0.199, respectively. The total time for coarse and block training is approximately 1 hour and 15 minutes. We will continue to update and improve the code in future releases.
 
 
 ## News
@@ -169,10 +169,10 @@ bash run.sh
 
 The script runs coarse training, scene partitioning, block training, block merging, rendering, and metric evaluation.
 
-All generated outputs are rooted at `OUTPUT_ROOT`. The default in `run.sh` is `output_new_1`:
+All generated outputs are rooted at `OUTPUT_ROOT`. The default in `run.sh` is `output_new`:
 
 ```bash
-OUTPUT_ROOT=output_new_1 bash run.sh
+OUTPUT_ROOT=output_new bash run.sh
 ```
 
 To move an experiment to another folder, either edit `OUTPUT_ROOT` once in `run.sh`, or override it at launch:
@@ -219,7 +219,7 @@ Useful fields in `config/rubble_c9_r4.yaml`:
 ```yaml
 pretrain_path: "output_new/rubble_coarse/point_cloud"
 model_path: "output_new/rubble_c9_r4"
-block_resolution_start: "min"
+block_resolution_start: "coarse"
 use_coarse_slope_ref: True
 ```
 
@@ -244,7 +244,7 @@ The scheduler is configured in `optim_params`:
 dynamic_resolution: True
 resolution_start_level: 1
 resolution_end_level: 5
-block_resolution_start: "min"
+block_resolution_start: "coarse"
 resolution_update_interval: 100
 resolution_metric_window: 5
 resolution_slope_ratio_threshold: 0.05
@@ -364,14 +364,7 @@ During densification, too many Gaussians may be generated, which can lead to OOM
 
 ### Training speed
 
-The bottleneck is often image decode/resize rather than CPU-to-GPU copy. Enable chunk cache:
-
-```yaml
-chunk_cache_size: 500
-chunk_cache_iterations: 2500
-```
-
-For larger speedups, precompute a resized image pyramid and train directly from resized images.
+The bottleneck is often image decode/resize rather than CPU-to-GPU copy. For larger speedups, precompute a resized image pyramid and train directly from resized images.
 
 ## Citation
 
